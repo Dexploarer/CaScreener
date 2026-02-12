@@ -1,4 +1,5 @@
-![CaScreener Banner](/banner.png)
+<img width="640" height="640" alt="image" src="https://github.com/user-attachments/assets/7ec9eb2b-545f-4a70-a006-d5d9d753bdb5" />
+
 
 # CaScreener 👻
 
