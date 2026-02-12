@@ -350,6 +350,41 @@ function ChatApp() {
               onSelectPrompt={handleSubmit}
             />
           </div>
+
+          {/* Disclaimer & CTA */}
+          <div className="mx-auto max-w-4xl py-12 border-t border-zinc-900">
+            <div className="rounded-2xl bg-zinc-900/40 border border-zinc-800/60 p-8 text-center space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-xl font-semibold text-zinc-100">A Gift to the Trenches</h3>
+                <p className="text-zinc-500 text-sm leading-relaxed max-w-2xl mx-auto">
+                  CaScreener started as an experiment in visual intelligence. It's now free and open-source because giving back to the trenches is paramount. If you find this tool valuable, please consider **starring it on GitHub**.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+                <a
+                  href="https://x.com/dEXploarer"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-zinc-100 text-zinc-950 font-medium hover:bg-zinc-200 transition-all text-sm"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
+                  Follow & Shout on X
+                </a>
+                <span className="text-zinc-700 text-xs uppercase tracking-widest hidden sm:block">•</span>
+                <p className="text-zinc-400 text-sm">
+                  Want more features? Let me know.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <footer className="text-center pt-8 pb-4">
+            <p className="text-[10px] uppercase tracking-[0.4em] text-zinc-700 font-medium">
+              Prompt or Die Anti-Cult 2026
+            </p>
+          </footer>
         </div>
       </div>
     );

@@ -1,3 +1,5 @@
+![CaScreener Banner](/banner.png)
+
 # CaScreener 👻
 
 CaScreener is an **Alpha Terminal** for the Solana trenches. What started as an experiment in **User-Generated Interfaces (UGI)** has evolved into a toolkit for degens who want deeper insights and cleaner visuals.
@@ -46,4 +48,4 @@ This repository is licensed under the MIT License. Fork it, build on it, and pus
 
 ---
 
-**Compliments of Dexploarer and the Prompt or Die Non-Cult**
+**Compliments of Dexploarer and the Prompt or Die Non-Cult 2026**

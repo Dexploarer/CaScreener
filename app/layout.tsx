@@ -5,6 +5,15 @@ export const metadata: Metadata = {
   title: "CaScreener | Memecoin Intelligence OS",
   description:
     "Real-time memecoin intelligence: clone detection, trust scoring, narrative radar, and viral share packs.",
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
+  openGraph: {
+    title: "CaScreener | Memecoin Intelligence OS",
+    description: "Scan, score, and share memecoin alpha with high-fidelity visual intelligence.",
+    images: ["/logo.png"],
+  },
 };
 
 export default function RootLayout({
