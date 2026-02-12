@@ -103,16 +103,16 @@ export const NARRATIVE_THEMES: NarrativeTheme[] = [
   {
     id: "memecoin",
     name: "Memecoin Regulation / Mania",
-    keywords: ["memecoin", "meme coin", "doge", "pepe", "bonk", "memecoin ban", "meme regulation"],
-    impactedTokens: ["dogecoin", "pepe", "bonk"],
+    keywords: ["memecoin", "meme coin", "doge", "pepe", "bonk", "wif", "dogwifhat", "shib", "shiba", "floki", "popcat", "trump coin", "trump token", "memecoin ban", "meme regulation"],
+    impactedTokens: ["dogecoin", "pepe", "bonk", "dogwifhat", "shiba-inu", "floki"],
     description: "Memecoin regulatory risk or cultural momentum",
   },
   {
     id: "ai-crypto",
     name: "AI + Crypto Convergence",
-    keywords: ["ai crypto", "artificial intelligence blockchain", "ai token", "machine learning crypto", "decentralized ai"],
-    impactedTokens: ["render-token", "near"],
-    description: "Intersection of AI and crypto, including AI tokens and decentralized compute",
+    keywords: ["ai crypto", "artificial intelligence blockchain", "ai token", "machine learning crypto", "decentralized ai", "ai agent", "ai compute", "gpu network", "render", "rndr", "fetch", "fet", "bittensor", "tao", "akash", "akt", "artificial superintelligence"],
+    impactedTokens: ["render-token", "near", "fetch-ai", "bittensor", "akash-network"],
+    description: "Intersection of AI and crypto, including AI tokens, decentralized compute, and AI agent infrastructure",
   },
   {
     id: "us-elections",
@@ -176,18 +176,31 @@ export function matchMarketsToNarratives(
     );
     if (matched.length === 0) continue;
 
+    // Time-decay: filter out resolved/expired markets and down-weight near-expiry
+    const now = Date.now();
+    const liveMatched = matched.filter((m) => {
+      if (m.isResolved) return false;
+      if (m.endDate) {
+        const end = new Date(m.endDate).getTime();
+        // Exclude markets that ended more than 24h ago (stale)
+        if (end < now - 86_400_000) return false;
+      }
+      return true;
+    });
+    if (liveMatched.length === 0) continue;
+
     // Average confidence (YES price)
     const avgConfidence =
-      matched.reduce((s, m) => s + m.yesPrice, 0) / matched.length;
+      liveMatched.reduce((s, m) => s + m.yesPrice, 0) / liveMatched.length;
 
     // Momentum: how much above/below 50% the markets lean
     // -1 = all bearish, +1 = all bullish
     const momentum =
-      matched.reduce((s, m) => s + (m.yesPrice - 0.5) * 2, 0) /
-      matched.length;
+      liveMatched.reduce((s, m) => s + (m.yesPrice - 0.5) * 2, 0) /
+      liveMatched.length;
 
     // Volume signal: what fraction of total volume these markets represent
-    const themeVolume = matched.reduce((s, m) => s + (m.volume ?? 0), 0);
+    const themeVolume = liveMatched.reduce((s, m) => s + (m.volume ?? 0), 0);
     const volumeSignal = totalVolume > 0 ? themeVolume / totalVolume : 0;
 
     // Token impacts
@@ -216,11 +229,11 @@ export function matchMarketsToNarratives(
       });
     }
 
-    const summary = `${theme.name}: ${matched.length} market${matched.length === 1 ? "" : "s"} tracking this narrative. Average confidence ${(avgConfidence * 100).toFixed(0)}%, momentum ${momentum > 0 ? "+" : ""}${(momentum * 100).toFixed(0)}%.`;
+    const summary = `${theme.name}: ${liveMatched.length} market${liveMatched.length === 1 ? "" : "s"} tracking this narrative. Average confidence ${(avgConfidence * 100).toFixed(0)}%, momentum ${momentum > 0 ? "+" : ""}${(momentum * 100).toFixed(0)}%.`;
 
     narratives.push({
       theme,
-      matchedMarkets: matched,
+      matchedMarkets: liveMatched,
       avgConfidence,
       momentum,
       volumeSignal,
@@ -242,7 +255,8 @@ export function scoreNarratives(narratives: Narrative[]): Narrative[] {
 
   for (const n of narratives) {
     const normalizedVol = n.volumeSignal / maxVol;
-    const normalizedMomentum = (Math.abs(n.momentum) + 1) / 2; // map [-1,1] to [0,1]
+    // Strong momentum in either direction is more signal-worthy than flat
+    const normalizedMomentum = Math.abs(n.momentum); // [-1,1] → [0,1]
     n.compositeScore =
       n.avgConfidence * 40 +
       normalizedVol * 30 +

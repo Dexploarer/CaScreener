@@ -1,6 +1,7 @@
 import type { WalletAnalyticsPayload } from "@/lib/helius/analytics";
 import type { PredictionMarket } from "@/lib/predictions/types";
-import { CRYPTO_KEYWORD_MAP, questionMatchesKeywords } from "./shared";
+import type { CoinMarketData } from "@/lib/market-data/coingecko";
+import { buildKeywordMap, questionMatchesKeywords } from "./shared";
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -283,9 +284,13 @@ export function computeActivityPattern(
  */
 export function crossRefWithPredictions(
   tokenAccounts: WalletAnalyticsPayload["tokenAccounts"],
-  markets: PredictionMarket[]
+  markets: PredictionMarket[],
+  coins: CoinMarketData[] = []
 ): PredictionCrossRef[] {
   const crossRefs: PredictionCrossRef[] = [];
+
+  // Build dynamic keyword map from actual market data
+  const keywordMap = buildKeywordMap(coins);
 
   // Get unique token symbols from holdings
   const heldSymbols = new Map<string, number>();
@@ -299,8 +304,27 @@ export function crossRefWithPredictions(
   }
 
   for (const [sym, amount] of heldSymbols) {
-    const entry = CRYPTO_KEYWORD_MAP[sym];
-    if (!entry) continue;
+    // Dynamic lookup — match wallet symbols against real coin data
+    const entry = keywordMap.get(sym);
+    if (!entry) {
+      // Fallback: try matching by symbol substring in market questions
+      const fallbackKeywords = [sym, sym.toUpperCase()];
+      const fallbackMarkets = markets
+        .filter((m) => questionMatchesKeywords(m.question, fallbackKeywords))
+        .map((m) => ({
+          question: m.question,
+          yesPrice: m.yesPrice,
+          relevance: `Holds ${sym.toUpperCase()}, market says ${(m.yesPrice * 100).toFixed(0)}% YES`,
+        }));
+      if (fallbackMarkets.length > 0) {
+        crossRefs.push({
+          tokenSymbol: sym.toUpperCase(),
+          holdingAmount: amount,
+          relatedMarkets: fallbackMarkets.slice(0, 5),
+        });
+      }
+      continue;
+    }
 
     const relatedMarkets = markets
       .filter((m) => questionMatchesKeywords(m.question, entry.keywords))
@@ -327,7 +351,8 @@ export function crossRefWithPredictions(
  */
 export function buildWhaleProfile(
   walletData: WalletAnalyticsPayload,
-  markets: PredictionMarket[]
+  markets: PredictionMarket[],
+  coins: CoinMarketData[] = []
 ): WhaleProfile {
   const labels = walletData.alliumEnrichment?.labels ?? [];
 
@@ -350,7 +375,8 @@ export function buildWhaleProfile(
 
   const predictionCrossRefs = crossRefWithPredictions(
     walletData.tokenAccounts,
-    markets
+    markets,
+    coins
   );
 
   // Risk rating

@@ -1,47 +1,77 @@
 import type { PredictionMarket } from "@/lib/predictions/types";
+import type { CoinMarketData } from "@/lib/market-data/coingecko";
 
-/**
- * Maps token symbols/names to CoinGecko IDs AND prediction market keywords.
- * Used to link crypto prices with prediction market questions.
- */
-export const CRYPTO_KEYWORD_MAP: Record<
-  string,
-  { coingeckoId: string; keywords: string[] }
-> = {
-  btc: { coingeckoId: "bitcoin", keywords: ["bitcoin", "btc", "bitcoin etf", "btc etf"] },
-  eth: { coingeckoId: "ethereum", keywords: ["ethereum", "eth", "ether", "ethereum etf", "eth etf"] },
-  sol: { coingeckoId: "solana", keywords: ["solana", "sol", "solana etf", "sol etf"] },
-  bnb: { coingeckoId: "binancecoin", keywords: ["binance", "bnb"] },
-  xrp: { coingeckoId: "ripple", keywords: ["ripple", "xrp", "xrp etf"] },
-  ada: { coingeckoId: "cardano", keywords: ["cardano", "ada"] },
-  doge: { coingeckoId: "dogecoin", keywords: ["dogecoin", "doge", "meme coin"] },
-  dot: { coingeckoId: "polkadot", keywords: ["polkadot", "dot"] },
-  avax: { coingeckoId: "avalanche-2", keywords: ["avalanche", "avax"] },
-  matic: { coingeckoId: "matic-network", keywords: ["polygon", "matic"] },
-  link: { coingeckoId: "chainlink", keywords: ["chainlink", "link", "oracle"] },
-  uni: { coingeckoId: "uniswap", keywords: ["uniswap", "uni", "dex"] },
-  atom: { coingeckoId: "cosmos", keywords: ["cosmos", "atom"] },
-  near: { coingeckoId: "near", keywords: ["near", "near protocol"] },
-  apt: { coingeckoId: "aptos", keywords: ["aptos", "apt"] },
-  sui: { coingeckoId: "sui", keywords: ["sui"] },
-  arb: { coingeckoId: "arbitrum", keywords: ["arbitrum", "arb", "layer 2", "l2"] },
-  op: { coingeckoId: "optimism", keywords: ["optimism", "op"] },
-  pepe: { coingeckoId: "pepe", keywords: ["pepe", "meme"] },
-  bonk: { coingeckoId: "bonk", keywords: ["bonk", "meme"] },
-  usdc: { coingeckoId: "usd-coin", keywords: ["usdc", "circle", "stablecoin"] },
-  usdt: { coingeckoId: "tether", keywords: ["usdt", "tether", "stablecoin"] },
-  aave: { coingeckoId: "aave", keywords: ["aave", "defi", "lending"] },
+// ── Dynamic Keyword Map ─────────────────────────────────────────
+
+export type DynamicKeywordEntry = {
+  coingeckoId: string;
+  symbol: string;
+  name: string;
+  keywords: string[];
 };
 
 /**
- * Reverse lookup: CoinGecko ID -> keywords for matching.
+ * Build a keyword map dynamically from actual market data.
+ * No hardcoded tickers — every token in the dataset gets keywords
+ * derived from its real CoinGecko id, symbol, and name.
  */
-export function getKeywordsForCoinId(coingeckoId: string): string[] {
-  for (const entry of Object.values(CRYPTO_KEYWORD_MAP)) {
-    if (entry.coingeckoId === coingeckoId) return entry.keywords;
+export function buildKeywordMap(
+  coins: CoinMarketData[]
+): Map<string, DynamicKeywordEntry> {
+  const map = new Map<string, DynamicKeywordEntry>();
+
+  for (const coin of coins) {
+    const sym = coin.symbol.toLowerCase();
+    const nameLower = coin.name.toLowerCase();
+    const keywords: string[] = [coin.id, sym, nameLower];
+
+    // Add individual words from multi-word names (e.g., "shiba inu" → "shiba", "inu")
+    if (nameLower.includes(" ")) {
+      for (const word of nameLower.split(/\s+/)) {
+        if (word.length > 2 && !keywords.includes(word)) {
+          keywords.push(word);
+        }
+      }
+    }
+
+    // Avoid clobbering a higher-cap coin with the same symbol
+    const existing = map.get(sym);
+    if (existing) {
+      const existingCoin = coins.find((c) => c.id === existing.coingeckoId);
+      if (existingCoin && existingCoin.market_cap > coin.market_cap) continue;
+    }
+
+    map.set(sym, {
+      coingeckoId: coin.id,
+      symbol: sym,
+      name: coin.name,
+      keywords,
+    });
   }
-  return [];
+
+  return map;
 }
+
+/**
+ * Generate match keywords directly from a single coin.
+ * Used by linkMarketsToCrypto to match prediction market questions.
+ */
+export function getKeywordsForCoin(coin: CoinMarketData): string[] {
+  const nameLower = coin.name.toLowerCase();
+  const keywords = [coin.id, coin.symbol.toLowerCase(), nameLower];
+
+  if (nameLower.includes(" ")) {
+    for (const word of nameLower.split(/\s+/)) {
+      if (word.length > 2 && !keywords.includes(word)) {
+        keywords.push(word);
+      }
+    }
+  }
+
+  return keywords;
+}
+
+// ── Utilities ────────────────────────────────────────────────────
 
 /**
  * Deduplicate a PredictionMarket array by id.
@@ -60,7 +90,6 @@ export function deduplicateById(markets: PredictionMarket[]): PredictionMarket[]
  * Matches patterns like "$100K", "$200", "$1M", "$50,000", etc.
  */
 export function extractPriceTarget(question: string): number | null {
-  // Match $X, $XK, $XM, $X,XXX patterns
   const match = question.match(
     /\$\s*([\d,]+(?:\.\d+)?)\s*(k|m|b|thousand|million|billion)?/i
   );
@@ -105,12 +134,14 @@ export function flattenDiverseMarkets(diverse: {
   matched: PredictionMarket[];
   highConfidence: PredictionMarket[];
   closeCall: PredictionMarket[];
+  aiEdge?: PredictionMarket[];
 }): PredictionMarket[] {
   return deduplicateById([
     ...diverse.topByVolume,
     ...diverse.matched,
     ...diverse.highConfidence,
     ...diverse.closeCall,
+    ...(diverse.aiEdge ?? []),
     ...diverse.recentlyAdded,
   ]);
 }

@@ -1,5 +1,59 @@
 import type { PredictionMarket, ArbitrageOpportunity, PredictionPlatform } from "./types";
 
+// Topics where AI/data analysis has a measurable edge (quantifiable outcomes)
+const AI_EDGE_KEYWORDS: string[] = [
+  // Crypto price targets — data-rich, chart-analyzable
+  "bitcoin", "btc", "ethereum", "eth", "solana", "sol", "crypto", "price",
+  "market cap", "token", "memecoin", "meme coin",
+  // Quantitative / statistics-heavy
+  "gdp", "inflation", "cpi", "unemployment", "rate cut", "interest rate",
+  "fed", "federal reserve",
+  // Sports (model-able with stats)
+  "nba", "nfl", "mlb", "premier league", "champions league", "world cup",
+  "super bowl", "mvp", "winner", "championship",
+  // AI/tech (domain expertise)
+  "ai", "artificial intelligence", "gpt", "openai", "google", "apple",
+  "earnings", "revenue", "stock",
+  // Elections / polls (poll-aggregation edge)
+  "election", "president", "senate", "governor", "polling", "vote",
+];
+
+/**
+ * Score how well-suited a market question is for AI/data-driven analysis.
+ * Returns 0-1 where higher = more data-driven edge.
+ */
+function computeAiEdge(question: string): number {
+  const q = question.toLowerCase();
+  let hits = 0;
+  for (const kw of AI_EDGE_KEYWORDS) {
+    if (q.includes(kw)) hits++;
+  }
+  // Normalize: 1 keyword = 0.3, 2 = 0.5, 3+ = 0.7+, cap at 1.0
+  if (hits === 0) return 0;
+  return Math.min(0.3 + (hits - 1) * 0.2, 1.0);
+}
+
+/**
+ * Compute urgency score based on time to resolution.
+ * Markets resolving in <7 days are most urgent/actionable.
+ */
+function computeUrgency(markets: PredictionMarket[]): number {
+  const now = Date.now();
+  let minDays = Infinity;
+  for (const m of markets) {
+    if (m.endDate) {
+      const days = (new Date(m.endDate).getTime() - now) / (1000 * 60 * 60 * 24);
+      if (days > 0 && days < minDays) minDays = days;
+    }
+  }
+  if (!Number.isFinite(minDays)) return 0.1; // no end date = low urgency
+  if (minDays <= 1) return 1.0;
+  if (minDays <= 7) return 0.8;
+  if (minDays <= 30) return 0.5;
+  if (minDays <= 90) return 0.3;
+  return 0.1;
+}
+
 function normalizeQuestion(text: string): string {
   return text
     .toLowerCase()
@@ -53,14 +107,19 @@ function computeArbForPair(a: PredictionMarket, b: PredictionMarket): ArbitrageO
 
   if (!impliedProfit && Math.abs(yesSpread) < 0.01 && Math.abs(noSpread) < 0.01) return null;
 
+  const question = a.question.length <= b.question.length ? a.question : b.question;
+  const markets = [a, b];
+
   return {
-    question: a.question.length <= b.question.length ? a.question : b.question,
-    markets: [a, b],
+    question,
+    markets,
     yesSpread,
     noSpread,
     bestYesBuy: { market: yesBuy, side: "YES", price: yesBuy.yesPrice },
     bestNoBuy: { market: noBuy, side: "NO", price: noBuy.noPrice },
     impliedProfit,
+    aiEdgeScore: computeAiEdge(question),
+    urgency: computeUrgency(markets),
   };
 }
 
@@ -93,10 +152,18 @@ export function findArbitrageOpportunities(
     }
   }
 
-  // Sort highest theoretical profit first
-  opportunities.sort(
-    (a, b) => (b.impliedProfit ?? 0) - (a.impliedProfit ?? 0)
-  );
+  // Composite sort: profit (50%) + AI-edge (30%) + urgency (20%)
+  opportunities.sort((a, b) => {
+    const scoreA =
+      (a.impliedProfit ?? 0) * 50 +
+      (a.aiEdgeScore ?? 0) * 30 +
+      (a.urgency ?? 0) * 20;
+    const scoreB =
+      (b.impliedProfit ?? 0) * 50 +
+      (b.aiEdgeScore ?? 0) * 30 +
+      (b.urgency ?? 0) * 20;
+    return scoreB - scoreA;
+  });
 
   return opportunities;
 }

@@ -47,6 +47,15 @@ export type ArbitrageOpportunity = {
    * (e.g. 0.03 == 3% ROI).
    */
   impliedProfit?: number;
+  /**
+   * AI-edge score 0-1: how well-suited this opportunity is for data-driven analysis.
+   * High when markets involve quantifiable, data-rich topics (crypto prices, sports stats, etc.).
+   */
+  aiEdgeScore?: number;
+  /**
+   * Urgency 0-1: how soon the market resolves. Higher = resolving sooner = more actionable.
+   */
+  urgency?: number;
 };
 
 /** Clamp a numeric value into [min,max]. */

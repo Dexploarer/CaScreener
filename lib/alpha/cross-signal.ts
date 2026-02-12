@@ -1,8 +1,8 @@
 import type { PredictionMarket } from "@/lib/predictions/types";
 import type { CoinMarketData, GlobalData } from "@/lib/market-data/coingecko";
 import {
-  CRYPTO_KEYWORD_MAP,
-  getKeywordsForCoinId,
+  buildKeywordMap,
+  getKeywordsForCoin,
   questionMatchesKeywords,
   extractPriceTarget,
 } from "./shared";
@@ -67,18 +67,9 @@ export function linkMarketsToCrypto(
 
   for (const market of markets) {
     for (const coin of coins) {
-      const keywords = getKeywordsForCoinId(coin.id);
-      if (keywords.length === 0) {
-        // Fallback: match by coin name/symbol in question
-        const q = market.question.toLowerCase();
-        if (
-          q.includes(coin.name.toLowerCase()) ||
-          q.includes(coin.symbol.toLowerCase())
-        ) {
-          linked.push({ market, coin });
-          break;
-        }
-      } else if (questionMatchesKeywords(market.question, keywords)) {
+      // Dynamic keyword matching from actual coin data — no static map
+      const keywords = getKeywordsForCoin(coin);
+      if (questionMatchesKeywords(market.question, keywords)) {
         linked.push({ market, coin });
         break;
       }
@@ -114,8 +105,8 @@ export function computePriceImpliedProbability(
   // Distance to target as fraction of current price
   const distanceRatio = (targetPrice - currentPrice) / currentPrice;
 
-  // Time factor: more time = higher probability of reaching target
-  const timeFactor = Math.min(daysRemaining / 365, 1);
+  // Time factor: more time = higher probability, but diminishing returns (log scale)
+  const timeFactor = Math.min(Math.log(1 + daysRemaining) / Math.log(366), 1);
 
   // Logistic mapping: combine momentum direction and distance
   const z = -distanceRatio * 3 + momentum * 10 + timeFactor * 0.5;
@@ -142,7 +133,7 @@ export function detectVolumeAnomalies(
 
   ratios.sort((a, b) => a - b);
   const medianRatio = ratios[Math.floor(ratios.length / 2)];
-  const threshold = Math.max(medianRatio * 3, 0.05); // 3x median or 5% minimum
+  const threshold = Math.max(medianRatio * 3, 0.02); // 3x median or 2% minimum (more sensitive)
 
   for (const m of markets) {
     const vol24 = m.volume24h ?? 0;
@@ -169,7 +160,8 @@ export function detectVolumeAnomalies(
  * category all trend the same direction (reinforcing signal).
  */
 export function detectConfidenceClusters(
-  markets: PredictionMarket[]
+  markets: PredictionMarket[],
+  coins: CoinMarketData[] = []
 ): ConfidenceCluster[] {
   // Group by category
   const groups = new Map<string, PredictionMarket[]>();
@@ -180,9 +172,10 @@ export function detectConfidenceClusters(
     groups.set(cat, existing);
   }
 
-  // Also group by crypto-specific keyword themes
+  // Group by crypto themes — dynamically from actual coin data
+  const keywordMap = buildKeywordMap(coins);
   const cryptoThemes: Record<string, PredictionMarket[]> = {};
-  for (const [symbol, entry] of Object.entries(CRYPTO_KEYWORD_MAP)) {
+  for (const [symbol, entry] of keywordMap.entries()) {
     const matching = markets.filter((m) =>
       questionMatchesKeywords(m.question, entry.keywords)
     );
@@ -308,8 +301,8 @@ export function generateAlphaReport(
     const marketProb = market.yesPrice;
     const gap = Math.abs(marketProb - priceImplied);
 
-    if (gap > 0.15) {
-      // At least 15% divergence
+    if (gap > 0.10) {
+      // At least 10% divergence (catches meaningful edges 10-15% that were missed)
       const direction: PriceDivergence["direction"] =
         marketProb > priceImplied + 0.1
           ? "market_bullish"
@@ -338,7 +331,7 @@ export function generateAlphaReport(
   return {
     divergences: divergences.sort((a, b) => b.divergence - a.divergence).slice(0, 10),
     volumeAnomalies: detectVolumeAnomalies(markets),
-    confidenceClusters: detectConfidenceClusters(markets),
+    confidenceClusters: detectConfidenceClusters(markets, coins),
     liquidityImbalances: detectLiquidityImbalances(markets),
     totalMarketsAnalyzed: markets.length,
     totalCoinsAnalyzed: coins.length,

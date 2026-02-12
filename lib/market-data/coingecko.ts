@@ -152,6 +152,35 @@ export async function getGlobalData(): Promise<GlobalData> {
 }
 
 /**
+ * Get top movers by 24h price change (both gainers and losers).
+ * Fetches a broad set by market cap and sorts client-side.
+ */
+export async function getTopMovers(count = 20): Promise<{
+  gainers: CoinMarketData[];
+  losers: CoinMarketData[];
+}> {
+  // Fetch top 250 by market cap to get a diverse pool
+  const all = await cachedFetch<CoinMarketData[]>(
+    "top-movers-pool",
+    `${BASE}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=true&price_change_percentage=7d`,
+    CACHE_TTL * 2 // Cache 2 min since this is a heavier call
+  );
+
+  const withChange = all.filter(
+    (c) => c.price_change_percentage_24h != null && Number.isFinite(c.price_change_percentage_24h)
+  );
+
+  const sorted = [...withChange].sort(
+    (a, b) => (b.price_change_percentage_24h ?? 0) - (a.price_change_percentage_24h ?? 0)
+  );
+
+  return {
+    gainers: sorted.slice(0, count),
+    losers: sorted.slice(-count).reverse(), // biggest losers first
+  };
+}
+
+/**
  * Search coins by query string.
  */
 export async function searchCoins(query: string): Promise<{ id: string; name: string; symbol: string; market_cap_rank: number | null }[]> {

@@ -180,6 +180,7 @@ export async function getDiverseMarkets(options: {
   matched: PredictionMarket[];
   highConfidence: PredictionMarket[];
   closeCall: PredictionMarket[];
+  aiEdge: PredictionMarket[];
 }> {
   const { keywords = [], limit = 100 } = options;
   const halfLimit = Math.ceil(limit / 2);
@@ -217,13 +218,14 @@ export async function getDiverseMarkets(options: {
     .sort((a, b) => (b.volume24h ?? 0) - (a.volume24h ?? 0))
     .slice(0, 15);
 
-  // Recently added (by end date furthest out — proxy for newer)
+  // Recently added: markets with high 24h-volume-to-total-volume ratio are likely newer
+  // (a fresh market has most of its volume concentrated in recent activity)
   const recentlyAdded = [...allMarkets]
-    .filter((m) => m.endDate)
+    .filter((m) => (m.volume24h ?? 0) > 0 && (m.volume ?? 0) > 0)
     .sort((a, b) => {
-      const da = new Date(a.endDate!).getTime();
-      const db = new Date(b.endDate!).getTime();
-      return db - da;
+      const ratioA = (a.volume24h ?? 0) / (a.volume ?? 1);
+      const ratioB = (b.volume24h ?? 0) / (b.volume ?? 1);
+      return ratioB - ratioA;
     })
     .slice(0, 10);
 
@@ -253,7 +255,34 @@ export async function getDiverseMarkets(options: {
     .sort((a, b) => (b.volume24h ?? 0) - (a.volume24h ?? 0))
     .slice(0, 10);
 
-  return { topByVolume, recentlyAdded, matched, highConfidence, closeCall };
+  // AI-edge: markets where data analysis gives a measurable advantage
+  // Targets: crypto prices, economic indicators, elections/polls, sports
+  const AI_EDGE_PATTERNS = [
+    "bitcoin", "btc", "ethereum", "eth", "solana", "sol", "crypto", "token",
+    "price", "market cap", "memecoin", "meme coin",
+    "gdp", "inflation", "cpi", "unemployment", "rate cut", "interest rate",
+    "election", "president", "senate", "governor", "polling",
+    "ai", "artificial intelligence", "gpt", "openai",
+    "nba", "nfl", "mlb", "premier league", "champions league",
+    "super bowl", "mvp", "championship",
+    "earnings", "revenue", "stock",
+  ];
+  const aiEdge = allMarkets
+    .filter((m) => {
+      const q = m.question.toLowerCase();
+      return AI_EDGE_PATTERNS.some((p) => q.includes(p));
+    })
+    // Prefer close calls (35-65%) within AI-edge — more exploitable
+    .sort((a, b) => {
+      const closenessA = 1 - Math.abs(a.yesPrice - 0.5) * 2;
+      const closenessB = 1 - Math.abs(b.yesPrice - 0.5) * 2;
+      const volA = (a.volume24h ?? 0) / 1000;
+      const volB = (b.volume24h ?? 0) / 1000;
+      return (closenessB + volB) - (closenessA + volA);
+    })
+    .slice(0, 15);
+
+  return { topByVolume, recentlyAdded, matched, highConfidence, closeCall, aiEdge };
 }
 
 /**
@@ -287,10 +316,11 @@ export function serializeMarketsForLLM(data: {
   matched: PredictionMarket[];
   highConfidence: PredictionMarket[];
   closeCall: PredictionMarket[];
+  aiEdge?: PredictionMarket[];
   keywords: string[];
   prompt: string;
 }): string {
-  const { topByVolume, recentlyAdded, matched, highConfidence, closeCall, keywords, prompt } = data;
+  const { topByVolume, recentlyAdded, matched, highConfidence, closeCall, aiEdge, keywords, prompt } = data;
   const parts: string[] = [];
 
   parts.push(`User asked: "${prompt}"`);
@@ -325,6 +355,11 @@ export function serializeMarketsForLLM(data: {
     closeCall.forEach((m) => parts.push(formatMarket(m)));
   }
 
+  if (aiEdge && aiEdge.length > 0) {
+    parts.push(`\nAI-EDGE MARKETS — Data-driven analysis advantage (${aiEdge.length}):`);
+    aiEdge.forEach((m) => parts.push(formatMarket(m)));
+  }
+
   if (recentlyAdded.length > 0) {
     parts.push(`\nNEWEST MARKETS (${recentlyAdded.length}):`);
     recentlyAdded.forEach((m) => parts.push(formatMarket(m)));
@@ -336,6 +371,7 @@ export function serializeMarketsForLLM(data: {
     ...matched.map((m) => m.id),
     ...highConfidence.map((m) => m.id),
     ...closeCall.map((m) => m.id),
+    ...(aiEdge ?? []).map((m) => m.id),
   ]).size;
 
   parts.push(`\nTOTAL UNIQUE MARKETS: ${totalMarkets}`);

@@ -21,6 +21,7 @@ import type { NarrativeReport } from "@/lib/alpha/narrative";
 import { deduplicateById, flattenDiverseMarkets } from "@/lib/alpha/shared";
 import {
   getTopCoins,
+  getTopMovers,
   getGlobalData,
   getTrending,
   getCoinsByIds,
@@ -3596,20 +3597,29 @@ async function handlePost(req: Request) {
   // ═══════════════════════════════════════════════════════════════
   if (queryType === "alpha") {
     try {
-      const [diverseData, topCoinsData, globalDataResult] = await Promise.all([
+      const [diverseData, topCoinsData, moversData, globalDataResult] = await Promise.all([
         getDiverseMarkets({ limit: 150 }).catch(() => ({
           topByVolume: [] as PredictionMarket[],
           recentlyAdded: [] as PredictionMarket[],
           matched: [] as PredictionMarket[],
           highConfidence: [] as PredictionMarket[],
           closeCall: [] as PredictionMarket[],
+          aiEdge: [] as PredictionMarket[],
         })),
-        getTopCoins(30).catch(() => [] as CoinMarketData[]),
+        getTopCoins(50).catch(() => [] as CoinMarketData[]),
+        getTopMovers(30).catch(() => ({ gainers: [] as CoinMarketData[], losers: [] as CoinMarketData[] })),
         getGlobalData().catch(() => null),
       ]);
 
+      // Combine top coins + movers for comprehensive dynamic coverage
+      const seenIds = new Set<string>();
+      const combinedCoins: CoinMarketData[] = [];
+      for (const c of [...topCoinsData, ...moversData.gainers, ...moversData.losers]) {
+        if (!seenIds.has(c.id)) { seenIds.add(c.id); combinedCoins.push(c); }
+      }
+
       const allMarkets = flattenDiverseMarkets(diverseData);
-      const report = generateAlphaReport(allMarkets, topCoinsData, globalDataResult);
+      const report = generateAlphaReport(allMarkets, combinedCoins, globalDataResult);
 
       if (process.env.OPENROUTER_API_KEY) {
         const dataContext = serializeAlphaForLLM(report, userPrompt);
@@ -3648,7 +3658,7 @@ async function handlePost(req: Request) {
 
     if (walletAddress && heliusKey) {
       try {
-        const [walletData, diverseData] = await Promise.all([
+        const [walletData, diverseData, whaleCoinsData] = await Promise.all([
           buildWalletAnalytics(heliusKey, walletAddress),
           getDiverseMarkets({ limit: 100 }).catch(() => ({
             topByVolume: [] as PredictionMarket[],
@@ -3656,11 +3666,13 @@ async function handlePost(req: Request) {
             matched: [] as PredictionMarket[],
             highConfidence: [] as PredictionMarket[],
             closeCall: [] as PredictionMarket[],
+            aiEdge: [] as PredictionMarket[],
           })),
+          getTopCoins(100).catch(() => [] as CoinMarketData[]),
         ]);
 
         const allMarkets = flattenDiverseMarkets(diverseData);
-        const profile = buildWhaleProfile(walletData, allMarkets);
+        const profile = buildWhaleProfile(walletData, allMarkets, whaleCoinsData);
 
         if (process.env.OPENROUTER_API_KEY) {
           const dataContext = serializeWhaleForLLM(profile, walletData, userPrompt);
@@ -3696,20 +3708,29 @@ async function handlePost(req: Request) {
   // ═══════════════════════════════════════════════════════════════
   if (queryType === "narrative") {
     try {
-      const [diverseData, topCoinsData, globalDataResult] = await Promise.all([
+      const [diverseData, narrativeCoins, narrativeMovers, globalDataResult] = await Promise.all([
         getDiverseMarkets({ limit: 150 }).catch(() => ({
           topByVolume: [] as PredictionMarket[],
           recentlyAdded: [] as PredictionMarket[],
           matched: [] as PredictionMarket[],
           highConfidence: [] as PredictionMarket[],
           closeCall: [] as PredictionMarket[],
+          aiEdge: [] as PredictionMarket[],
         })),
-        getTopCoins(30).catch(() => [] as CoinMarketData[]),
+        getTopCoins(50).catch(() => [] as CoinMarketData[]),
+        getTopMovers(20).catch(() => ({ gainers: [] as CoinMarketData[], losers: [] as CoinMarketData[] })),
         getGlobalData().catch(() => null),
       ]);
 
+      // Combine for broader narrative token coverage
+      const seenIds = new Set<string>();
+      const narrativeCombined: CoinMarketData[] = [];
+      for (const c of [...narrativeCoins, ...narrativeMovers.gainers, ...narrativeMovers.losers]) {
+        if (!seenIds.has(c.id)) { seenIds.add(c.id); narrativeCombined.push(c); }
+      }
+
       const allMarkets = flattenDiverseMarkets(diverseData);
-      const report = generateNarrativeReport(allMarkets, topCoinsData, globalDataResult);
+      const report = generateNarrativeReport(allMarkets, narrativeCombined, globalDataResult);
 
       if (process.env.OPENROUTER_API_KEY) {
         const dataContext = serializeNarrativeForLLM(report, userPrompt);
