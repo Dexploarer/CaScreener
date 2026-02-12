@@ -365,7 +365,7 @@ function ChatApp() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-40" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
           </span>
-          <span className="text-sm font-medium text-zinc-500">Tickergeist</span>
+          <span className="text-sm font-medium text-zinc-500">CaScreener</span>
         </div>
         <button
           type="button"
@@ -405,21 +405,21 @@ function ChatApp() {
           {/* Current stream */}
           {(isStreaming ||
             (spec && !history.some((h) => h.spec === spec))) && (
-            <div className="space-y-3 animate-fade-in-up">
-              <PromptBubble text={currentPrompt} />
-              <div className="ml-9 rounded-2xl border border-zinc-800/50 bg-zinc-900/20 p-6">
-                {!spec && isStreaming ? (
-                  <LoadingDots />
-                ) : (
-                  <Renderer
-                    spec={spec}
-                    registry={registry}
-                    loading={isStreaming}
-                  />
-                )}
+              <div className="space-y-3 animate-fade-in-up">
+                <PromptBubble text={currentPrompt} />
+                <div className="ml-9 rounded-2xl border border-zinc-800/50 bg-zinc-900/20 p-6">
+                  {!spec && isStreaming ? (
+                    <LoadingDots />
+                  ) : (
+                    <Renderer
+                      spec={spec}
+                      registry={registry}
+                      loading={isStreaming}
+                    />
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
         </div>
       </div>
 

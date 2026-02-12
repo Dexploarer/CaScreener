@@ -25,14 +25,14 @@ export default function Image() {
           fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif",
         }}
       >
-        <div style={{ fontSize: 20, opacity: 0.8 }}>Tickergeist • prediction markets</div>
+        <div style={{ fontSize: 20, opacity: 0.8 }}>CaScreener • prediction markets</div>
         <div>
           <div style={{ fontSize: 52, fontWeight: 800, lineHeight: 1.05 }}>
             Today&apos;s Wildest Arbs
           </div>
           <div style={{ marginTop: 16, fontSize: 24, maxWidth: 700, opacity: 0.9 }}>
             Live leaderboard of the biggest spreads between Polymarket &amp; Manifold – built on
-            Tickergeist + AI SDK.
+            CaScreener + AI SDK.
           </div>
         </div>
         <div

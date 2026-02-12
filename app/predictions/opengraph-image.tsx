@@ -25,7 +25,7 @@ export default function Image() {
           fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif",
         }}
       >
-        <div style={{ fontSize: 20, opacity: 0.8 }}>Tickergeist</div>
+        <div style={{ fontSize: 20, opacity: 0.8 }}>CaScreener</div>
         <div>
           <div style={{ fontSize: 56, fontWeight: 800, lineHeight: 1.05 }}>
             Prediction Markets &amp; AI Dashboards
