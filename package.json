@@ -1,0 +1,63 @@
+{
+  "name": "tickergeist",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Alpha Terminal for Solana Trenches — UI Generation, Project Meta, and Hype Tooling.",
+  "keywords": [
+    "solana",
+    "memecoins",
+    "alpha",
+    "terminal",
+    "ai-sdk",
+    "json-render",
+    "pumpfun"
+  ],
+  "packageManager": "bun@1.3.5",
+  "scripts": {
+    "dev": "bun --bun next dev",
+    "dev:clean": "rm -rf .next && bun --bun next dev",
+    "clean": "rm -rf .next",
+    "build": "bun --bun next build",
+    "start": "bun --bun next start",
+    "lint": "bunx next lint",
+    "typecheck": "bunx tsc --noEmit",
+    "test:e2e": "bunx playwright test",
+    "convex:dev": "bunx convex dev",
+    "convex:codegen": "bunx convex codegen --typecheck disable"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "latest",
+    "@ai-sdk/openai": "latest",
+    "@ai-sdk/openai-compatible": "^2.0.28",
+    "@babel/runtime": "^7.28.6",
+    "@convex-dev/r2": "^0.9.1",
+    "@convex-dev/rag": "^0.7.1",
+    "@convex-dev/workflow": "^0.3.4",
+    "@convex-dev/workpool": "^0.3.1",
+    "@json-render/core": "latest",
+    "@json-render/react": "latest",
+    "@json-render/remotion": "^0.5.2",
+    "@remotion/bundler": "^4.0.421",
+    "@remotion/renderer": "^4.0.421",
+    "ai": "latest",
+    "convex": "^1.31.7",
+    "gsap": "^3.14.2",
+    "next": "15.3.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "undici": "^7.21.0",
+    "ws": "^8.19.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^22.10.1",
+    "@types/react": "^19.0.1",
+    "@types/react-dom": "^19.0.1",
+    "@types/ws": "^8.18.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16",
+    "typescript": "^5.9.3"
+  }
+}
