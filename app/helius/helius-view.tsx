@@ -85,6 +85,14 @@ function trustTone(grade: string | undefined): string {
   return "text-red-300";
 }
 
+function dimensionBarColor(score: number, max: number): string {
+  const pct = max > 0 ? score / max : 0;
+  if (pct >= 0.75) return "bg-emerald-500";
+  if (pct >= 0.5) return "bg-lime-500";
+  if (pct >= 0.25) return "bg-amber-500";
+  return "bg-red-500";
+}
+
 function toPercent(value: number | undefined): string {
   if (value == null || !Number.isFinite(value)) return "0.0%";
   return `${(value * 100).toFixed(1)}%`;
@@ -774,12 +782,12 @@ export function HeliusView(props: HeliusViewProps) {
           </div>
 
           {data.trustScore && (
-            <section className="rounded-xl border border-emerald-800/50 bg-emerald-950/20 p-4 space-y-3">
+            <section className="rounded-xl border border-emerald-800/50 bg-emerald-950/20 p-4 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-semibold text-emerald-200">Trust Score</h3>
                   <p className="text-emerald-100/80 text-sm">
-                    Explicit scoring with proof links for mint, pair, tx, and liquidity.
+                    Multi-dimensional scoring: identity, liquidity, volume, trading health, and maturity.
                   </p>
                 </div>
                 <div className="text-right">
@@ -790,7 +798,81 @@ export function HeliusView(props: HeliusViewProps) {
                   <p className="text-zinc-400 text-sm">Grade {data.trustScore.grade}</p>
                 </div>
               </div>
-              {data.trustScore.reasons.length > 0 && (
+
+              {data.trustScore.dimensions && data.trustScore.dimensions.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                  {data.trustScore.dimensions.map((dim) => (
+                    <div
+                      key={dim.key}
+                      className="rounded-lg border border-zinc-700/70 bg-zinc-900/60 p-3"
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className="text-zinc-300 text-xs font-medium truncate">{dim.label}</p>
+                        <p className="text-zinc-200 text-xs font-bold ml-2 shrink-0">
+                          {dim.score}/{dim.maxScore}
+                        </p>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-zinc-800 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${dimensionBarColor(dim.score, dim.maxScore)}`}
+                          style={{ width: `${dim.maxScore > 0 ? (dim.score / dim.maxScore) * 100 : 0}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {data.trustScore.dimensions && data.trustScore.dimensions.length > 0 ? (
+                <div className="space-y-3">
+                  {data.trustScore.dimensions.map((dim) => (
+                    <details key={dim.key} className="group">
+                      <summary className="cursor-pointer flex items-center gap-2 text-sm text-zinc-300 hover:text-zinc-100 transition-colors">
+                        <span className="text-zinc-500 group-open:rotate-90 transition-transform">&#9654;</span>
+                        <span className="font-medium">{dim.label}</span>
+                        <span className={`ml-auto text-xs font-bold ${
+                          dim.maxScore > 0 && dim.score / dim.maxScore >= 0.75
+                            ? "text-emerald-300"
+                            : dim.maxScore > 0 && dim.score / dim.maxScore >= 0.5
+                              ? "text-lime-300"
+                              : dim.maxScore > 0 && dim.score / dim.maxScore >= 0.25
+                                ? "text-amber-300"
+                                : "text-red-300"
+                        }`}>
+                          {dim.score}/{dim.maxScore}
+                        </span>
+                      </summary>
+                      <ul className="mt-2 ml-4 space-y-1.5">
+                        {dim.reasons.map((reason) => (
+                          <li
+                            key={reason.key}
+                            className="rounded-lg border border-zinc-700/50 bg-zinc-900/40 p-2.5"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2 mb-0.5">
+                              <p className="text-zinc-200 text-sm font-medium">{reason.label}</p>
+                              <p className={`text-xs font-bold ${reason.impact > 0 ? "text-emerald-300" : reason.impact < 0 ? "text-red-300" : "text-zinc-500"}`}>
+                                {reason.impact > 0 ? "+" : ""}
+                                {reason.impact}
+                              </p>
+                            </div>
+                            <p className="text-zinc-400 text-xs">{reason.detail}</p>
+                            {reason.link && (
+                              <a
+                                href={reason.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-block mt-1.5 text-xs text-emerald-400 hover:underline"
+                              >
+                                Source link →
+                              </a>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  ))}
+                </div>
+              ) : data.trustScore.reasons.length > 0 ? (
                 <ul className="space-y-2">
                   {data.trustScore.reasons.map((reason) => (
                     <li
@@ -818,7 +900,8 @@ export function HeliusView(props: HeliusViewProps) {
                     </li>
                   ))}
                 </ul>
-              )}
+              ) : null}
+
               <div className="flex flex-wrap gap-2">
                 <a
                   href={data.trustScore.hardLinks.mint}

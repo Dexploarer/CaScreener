@@ -25,10 +25,10 @@ function truncate(value: string, max = 72): string {
 }
 
 function scoreColor(score: number): string {
-  if (score >= 85) return "#34d399";
-  if (score >= 70) return "#a3e635";
-  if (score >= 55) return "#fbbf24";
-  if (score >= 40) return "#fb923c";
+  if (score >= 80) return "#34d399";
+  if (score >= 65) return "#a3e635";
+  if (score >= 45) return "#fbbf24";
+  if (score >= 30) return "#fb923c";
   return "#f87171";
 }
 

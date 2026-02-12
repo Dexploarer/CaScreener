@@ -89,6 +89,19 @@ export type TokenLookupResult = {
       detail: string;
       link?: string;
     }>;
+    dimensions?: Array<{
+      key: string;
+      label: string;
+      score: number;
+      maxScore: number;
+      reasons: Array<{
+        key: string;
+        label: string;
+        impact: number;
+        detail: string;
+        link?: string;
+      }>;
+    }>;
     hardLinks: {
       mint: string;
       pair?: string;
